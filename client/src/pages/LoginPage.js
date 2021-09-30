@@ -5,7 +5,7 @@ import axios from 'axios';
 
 export default function LoginPage({ dispatch }) {
     const [loginCredentials, setLoginCredentials] = useState({
-        username: '',
+        name: '',
         password: ''
     });
     const STATUS = {
@@ -24,15 +24,15 @@ export default function LoginPage({ dispatch }) {
     function handleLogin(e) {
         e.preventDefault();
         let errorMessage = '';
-        if (loginCredentials.username.length < 6 || loginCredentials.username.length > 12) errorMessage = `Character name should be between 6 and 12 characters in length. `;
+        if (loginCredentials.name.length < 6 || loginCredentials.name.length > 12) errorMessage = `Character name should be between 6 and 12 characters in length. `;
         if (loginCredentials.password.length < 5) errorMessage += `Passwords can't be less than 5 characters long (and even that is kind of dangerously short).`;
         if (errorMessage) return alert(`YIKES error: ${errorMessage}`);
         
         // HERE: add feedback alert for 'logging in...' and 'welcome back, <character.name!>
-        axios.post('/character/login', { userCredentials: loginCredentials })
+        axios.post('/user/login', { userCredentials: loginCredentials })
         .then(res => {
             localStorage.setItem('townshipJWT', res.data.payload.token);
-            dispatch({type: actions.LOAD_CHAR, payload: { character: res.data.payload.character}});
+            dispatch({type: actions.LOAD_CHARACTER, payload: { character: res.data.payload.character}});
             // HERE: dispatch for 'play game mode'
             // HM, soon to figure out how to get the socket connected, as well, which will happen in the MainView area (conditionally on being actually logged in)
         })
@@ -55,7 +55,7 @@ export default function LoginPage({ dispatch }) {
 
                 <InputContainer>
                     <InputLabel>Character Name</InputLabel>
-                    <Input type='text' minLength={6} maxLength={12} value={loginCredentials.username} onChange={e => setLoginCredentials({...loginCredentials, username: e.target.value})}></Input>
+                    <Input type='text' minLength={6} maxLength={12} value={loginCredentials.name} onChange={e => setLoginCredentials({...loginCredentials, name: e.target.value})}></Input>
                 </InputContainer>
 
                 <InputContainer>

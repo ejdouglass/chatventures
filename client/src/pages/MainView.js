@@ -18,6 +18,9 @@ export default function MainView() {
         case 'createChatventurer': {
             return <CreateChatventurerPage dispatch={dispatch} />
         }
+        case 'home': {
+            return <div>You are HOME, my friend.</div>
+        }
         default: {
             return (
                 <div>
