@@ -2,7 +2,8 @@ import React, { createContext, useReducer } from 'react';
 
 export const actions = {
     UPDATE_APPSTATE: 'update_appstate',
-    LOAD_CHARACTER: 'load_character'
+    LOAD_CHARACTER: 'load_character',
+    LOGOUT: 'logout'
 };
 
 export const Reducer = (state, action) => {
@@ -13,6 +14,9 @@ export const Reducer = (state, action) => {
         case actions.LOAD_CHARACTER: {
             // probably just return the payload, appending appState if/as necessary
             return action.payload;
+        }
+        case actions.LOGOUT: {
+            return {name: undefined, appState: 'login'};
         }
         default:
             return state;

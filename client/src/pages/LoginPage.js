@@ -24,7 +24,7 @@ export default function LoginPage({ dispatch }) {
     function handleLogin(e) {
         e.preventDefault();
         let errorMessage = '';
-        if (loginCredentials.name.length < 6 || loginCredentials.name.length > 12) errorMessage = `Character name should be between 6 and 12 characters in length. `;
+        if (loginCredentials.name.length < 5 || loginCredentials.name.length > 12) errorMessage = `Character name should be between 5 and 12 characters in length. `;
         if (loginCredentials.password.length < 5) errorMessage += `Passwords can't be less than 5 characters long (and even that is kind of dangerously short).`;
         if (errorMessage) return alert(`YIKES error: ${errorMessage}`);
         
@@ -32,7 +32,7 @@ export default function LoginPage({ dispatch }) {
         axios.post('/user/login', { userCredentials: loginCredentials })
         .then(res => {
             localStorage.setItem('townshipJWT', res.data.payload.token);
-            dispatch({type: actions.LOAD_CHARACTER, payload: { character: res.data.payload.character}});
+            dispatch({type: actions.LOAD_CHARACTER, payload: res.data.payload.user});
             // HERE: dispatch for 'play game mode'
             // HM, soon to figure out how to get the socket connected, as well, which will happen in the MainView area (conditionally on being actually logged in)
         })
@@ -44,7 +44,24 @@ export default function LoginPage({ dispatch }) {
     }
 
     useEffect(() => {
-
+        const townshipJWT = localStorage.getItem('townshipJWT');
+        if (townshipJWT) {
+            axios.post('/user/login', { userToken: townshipJWT })
+            .then(res => {
+                if (res.data.payload.token) {
+                    localStorage.setItem('townshipJWT', res.data.payload.token);
+                    return dispatch({type: actions.LOAD_CHARACTER, payload: res.data.payload.user});
+                }
+                return localStorage.removeItem('townshipJWT');
+                // HERE: dispatch for 'play game mode'
+                // HM, soon to figure out how to get the socket connected, as well, which will happen in the MainView area (conditionally on being actually logged in)
+            })
+            .catch(err => {
+                console.log(`Error logging in: ${err}`);
+                // HERE: dispatch for user alert/feedback
+            })                  
+        };
+        return;
     }, []);
 
     return (

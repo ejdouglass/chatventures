@@ -208,7 +208,7 @@ app.post('/user/login', (req, res, next) => {
         const decodedToken = jwt.verify(userToken, process.env.SECRET);
         const { name, userID } = decodedToken;
 
-        console.log(`It appears we're searching for a user by the name of ${name}?`)
+        console.log(`It appears we're searching for a user by the name of ${name} and id ${userID}.`);
         User.findOne({ name: name, userID: userID })
             .then(searchResult => {
                 if (searchResult === null) {
@@ -217,11 +217,11 @@ app.post('/user/login', (req, res, next) => {
                     res.status(406).json({type: `failure`, echo: `No such username exists yet. You can create them, if you'd like!`});
                 } else {
                     // Token worked! Currently we make a brand-new one here to pass down, but we can play with variations on that later
-                    const token = craftAccessToken(searchResult.username, searchResult._id);
+                    const token = craftAccessToken(searchResult.name, searchResult.userID);
                     const userToLoad = JSON.parse(JSON.stringify(searchResult));
                     delete userToLoad.salt;
                     delete userToLoad.hash;
-                    userToLoad.whatDo = 'dashboard';
+                    userToLoad.appState = 'home';
                     // if (characters[userToLoad.entityID] !== undefined) characters[userToLoad.entityID].fighting = {main: undefined, others: []};
                     // const alreadyInGame = addCharacterToGame(userToLoad);
 

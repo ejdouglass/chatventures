@@ -3,6 +3,7 @@ import { Context, actions } from '../context';
 // components to define/add: UserAlert
 import LoginPage from './LoginPage'
 import CreateChatventurerPage from './CreateChatventurerPage';
+import GameFramePage from './GameFramePage';
 
 export default function MainView() {
     const [state, dispatch] = useContext(Context);
@@ -11,7 +12,7 @@ export default function MainView() {
     // Well, for 'universal' overlays, we can still do it at the root/App level?
         // Can also just have each 'branch' below have its own 'stack' of components that receives only precisely what it needs. Let's try that.
     // Gotta look into 'tracking' components as a relatively next investment, see what does and does not re-render.
-    switch (state.appState) {
+    switch (state?.appState) {
         case 'login': {
             return <LoginPage dispatch={dispatch} />
         }
@@ -19,13 +20,17 @@ export default function MainView() {
             return <CreateChatventurerPage dispatch={dispatch} />
         }
         case 'home': {
-            return <div>You are HOME, my friend.</div>
+            return (
+                <GameFramePage state={state} dispatch={dispatch}>
+                    
+                </GameFramePage>                
+            )
         }
         default: {
             return (
-                <div>
+                <GameFramePage state={state} dispatch={dispatch}>
                     NO STATE DEFINED. WHAT AM I? beep boop
-                </div>
+                </GameFramePage>
             )
         }
     }
