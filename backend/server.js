@@ -91,8 +91,10 @@ function saveUser(user) {
 
 io.on('connection', (socket) => {
     let thisUser;
-    socket.on('login', user => {
-        thisUser = allUsers[user.name];
+    socket.on('login', userJWT => {
+        const decodedUserName = jwt.verify(userJWT, process.env.SECRET).name;
+        thisUser = allUsers[decodedUserName];
+        // console.log(`Someone has socket-logged-in: ${thisUser.name}. Hi!`);
         if (!thisUser) {
             console.log(`Uh oh. Someone logged in but that user doesn't seem to exist. That can't be good.`);
         }
@@ -100,9 +102,14 @@ io.on('connection', (socket) => {
         // Include: personal name socket, all their chats/townships, zenithica of course, ...
         socket.join(thisUser.name);
         
+        
         // HERE: go through all their townships, socket.join their ids, and then zip through their history to get 'unread badge' figures
         // Obviously if a township doesn't have a 'lastVisitTimestamp' variable tagged on it yet, dodge around it and define it later when appropriate
     });
+
+    socket.on('test_message', message => {
+        console.log(`A client sent this message: ${message}`);
+    })
 
     socket.on('data_from_client', data => {
         console.log(`Received something from the client: ${data}`);
@@ -208,7 +215,7 @@ app.post('/user/login', (req, res, next) => {
         const decodedToken = jwt.verify(userToken, process.env.SECRET);
         const { name, userID } = decodedToken;
 
-        console.log(`It appears we're searching for a user by the name of ${name} and id ${userID}.`);
+        // console.log(`It appears we're searching for a user by the name of ${name} and id ${userID}.`);
         User.findOne({ name: name, userID: userID })
             .then(searchResult => {
                 if (searchResult === null) {
@@ -292,14 +299,14 @@ User.find()
         for (const user in allAppUsers) {
             delete allAppUsers[user].salt;
             delete allAppUsers[user].hash;
-            allUsers[user.name] = user; // not 100% sure that this is the proper way to handle this bit?
+            allUsers[allAppUsers[user].name] = allAppUsers[user];
             // HERE: re-calculate what their flux 'should' be, add flux setTimeout
             // HERE: once we have scripts rolling, scroll through their townships and figure out what the results of -those- should be, too, if applicable
         }
         Township.find()
             .then(allAppTownships => {
                 for (const township in allAppTownships) {
-                    allTownships[township.townID] = township;
+                    allTownships[allAppTownships[township].townID] = allAppTownships[township];
                 }
 
                 // HERE: allTownships[0] should be Zenithica, so if it isn't populated for some reason, init it here AND save it

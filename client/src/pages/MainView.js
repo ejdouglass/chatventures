@@ -12,6 +12,10 @@ export default function MainView() {
     // Well, for 'universal' overlays, we can still do it at the root/App level?
         // Can also just have each 'branch' below have its own 'stack' of components that receives only precisely what it needs. Let's try that.
     // Gotta look into 'tracking' components as a relatively next investment, see what does and does not re-render.
+
+    // Consider adding a 'loading' case to eliminate the JWT-retrieving "stutter"
+    // 'LoadingPage' would do a quick check for JWT and if none, quick hop to LoginPage
+    // Once we have some assets to speak of, that'd be a fine time to start loading them, as well... keep it interesting for the user, though!
     switch (state?.appState) {
         case 'login': {
             return <LoginPage dispatch={dispatch} />
