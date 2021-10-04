@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Context, actions } from '../context';
-// components to define/add: UserAlert
+// components to define/add: Alert.js
 import LoginPage from './LoginPage'
 import CreateChatventurerPage from './CreateChatventurerPage';
 import GameFramePage from './GameFramePage';
 
 export default function MainView() {
     const [state, dispatch] = useContext(Context);
+
 
     // Interesting concept. Gotta spend a sec to think about how we'll deal with 'overlays' in this format.
     // Well, for 'universal' overlays, we can still do it at the root/App level?

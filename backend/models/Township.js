@@ -22,6 +22,12 @@ const TownshipSchema = new Schema({
 
 }, { minimize: false });
 
+// Extra consideration, maybe: 'danger level,' indicating overall aggressiveness of the world
+// Or maybe sub-variables for different types of danger/threats
+
+// Additional variable sketchery: 
+// privacy? joinRules? visibility? threatLevels? floraProfile? faunaProfile? biomeProfile? 
+
 module.exports = mongoose.model('Township', TownshipSchema);
 
 /*

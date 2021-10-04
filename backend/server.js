@@ -82,12 +82,23 @@ function saveUser(user) {
             console.log(`We encountered an error saving the user: ${err}.`);
         });
     
-    // const targetArrayIndex = allUsers.findIndex(allUserEntry => allUserEntry.username === user.username);
-    // allUsers[targetArrayIndex] = user;
-    // HERE: do the chatventure app version of the above
+    // we don't need to update the server version of the user in this case of this function being invoked;
+    // the server-side character is changed first and passed into this fxn
 }
 
-// HERE: saveTownship function, similar to above
+// HERE: saveTownship function, similar to above; like above, takes the full township entry/entity
+function saveTownship(township) {
+    const filter = { townID: township.townID };
+    const update = { $set: township };
+    const options = { new: true, useFindAndModify: false };
+    Township.findOneAndUpdate(filter, update, options)
+        .then(updatedResult => {
+            console.log(`${updatedResult.name} has been updated.`);
+        })
+        .catch(err => {
+            console.log(`We encountered an error saving the user: ${err}.`);
+        });    
+}
 
 io.on('connection', (socket) => {
     let thisUser;
@@ -101,23 +112,46 @@ io.on('connection', (socket) => {
         // HERE: all imaginable socket.join(SOCKETNAME) goes here
         // Include: personal name socket, all their chats/townships, zenithica of course, ...
         socket.join(thisUser.name);
-        
+        console.log(`${thisUser.name} has joined the game.`);
         
         // HERE: go through all their townships, socket.join their ids, and then zip through their history to get 'unread badge' figures
         // Obviously if a township doesn't have a 'lastVisitTimestamp' variable tagged on it yet, dodge around it and define it later when appropriate
     });
 
+    socket.on('data_from_client', data => {
+        // console.log(`Received something from the client: ${JSON.stringify(data)}`);
+        // console.log(`AT THIS STAGE I BELIEVE THISUSER LOOKS LIKE THIS: ${thisUser}`);
+        if (thisUser === undefined || thisUser.name === undefined) {
+            const decodedUserName = jwt.verify(data.token, process.env.SECRET).name;
+            thisUser = allUsers[decodedUserName];
+        }
+        switch (data.event) {
+            case 'view_township': {
+                // ADD: activeChat ID set for thisUser
+                return socket.emit('township_view_data', allTownships[data.townshipID]);
+            }
+        }
+        // HERE: probably a switch to check data.type - switch (data.type)
+
+    });    
+
     socket.on('test_message', message => {
         console.log(`A client sent this message: ${message}`);
-    })
-
-    socket.on('data_from_client', data => {
-        console.log(`Received something from the client: ${data}`);
-        // HERE: probably a switch to check data.type - switch (data.type)
     });
+
+    socket.on('view_township', townshipRequestObj => {
+        const { token, townshipID } = townshipRequestObj;
+        
+
+        // ADD: check to make sure townshipID exists before responding to client
+        socket.emit('township_view_data', allTownships[townshipID]);
+    });
+
+
 
     socket.on('disconnect', () => {
         // handle disconnect logic
+        
     });
 
 });
@@ -306,10 +340,39 @@ User.find()
         Township.find()
             .then(allAppTownships => {
                 for (const township in allAppTownships) {
+                    // Updated allUsers above, and then adjusted below to match; test later to ensure all townships load properly
                     allTownships[allAppTownships[township].townID] = allAppTownships[township];
                 }
 
                 // HERE: allTownships[0] should be Zenithica, so if it isn't populated for some reason, init it here AND save it
+                if (allTownships[0] === undefined) {
+                    console.log(`Server indicates Zenithica is currently A COMPLETE FIGMENT OF IMAGINATION. We should probably fix that...`);
+                    allTownships[0] = {
+                        name: 'Zenithica',
+                        townID: 0,
+                        creator: 'Dog',
+                        admins: 'Dog',
+                        members: 'everyone',
+                        history: [],
+                        creationTime: new Date(),
+                        fluxSpent: 0,
+                        regionMap: [],
+                        regionEvents: {},
+                        regionStructures: {},
+                        townMap: [],
+                        townEvents: {},
+                        townStructures: {}, // can set up first 'shops' and training and such here
+                        npcs: {},
+                        mobs: {},
+                        townSize: 9999,
+                    }
+                    // HERE, steps: 
+                    // 1) create all the basic variables Zenithica should have to function properly via allTownshops[0] = {...}
+                    // 2) manually save the township into the DB (the saveTownship fxn requires the township to previously exist),
+                    //  - OR - we can make a saveNewTownship fxn to do it for us, which actually seems wise
+                    // 3) call saveTownship fxn appropriately
+                    // 4) profit?
+                }
 
                 // HERE: final prep work for the app -- tbd
 
