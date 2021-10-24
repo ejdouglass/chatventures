@@ -100,6 +100,10 @@ function saveTownship(township) {
         });    
 }
 
+function saveNewTownship(township) {
+    // we'll set this up if the above doesn't work for a brand-new township
+}
+
 io.on('connection', (socket) => {
     let thisUser;
     socket.on('login', userJWT => {
@@ -129,6 +133,18 @@ io.on('connection', (socket) => {
             case 'view_township': {
                 // ADD: activeChat ID set for thisUser
                 return socket.emit('township_view_data', allTownships[data.townshipID]);
+            }
+            case 'create_township': {
+                // THIS: check to see if name available; if NO, return alert, if YES, create and return alert & instructions to client-nav into new township
+                // AKSHULLY, we can just piggyback on that township_view_data above instead of creating a new socket event
+                Object.keys(allTownships).forEach(keyID => {
+                    if (allTownships[keyID].name.toLowerCase() === data.township.name.toLowerCase()) return socket.emit('alert', `WHOOPS-E-DOODLE`);
+                });
+
+                // HERE: gotta do some finagling to set up the initial township details based on the initially provided data plus random shenanigans
+                // can make a fxn whose job is to create a glorious township obj with its own personality and then sail away from there
+
+                return;
             }
         }
         // HERE: probably a switch to check data.type - switch (data.type)
@@ -328,60 +344,124 @@ app.post('/user/login', (req, res, next) => {
 
 const PORT = process.env.PORT;
 
-User.find()
-    .then(allAppUsers => {
-        for (const user in allAppUsers) {
-            delete allAppUsers[user].salt;
-            delete allAppUsers[user].hash;
-            allUsers[allAppUsers[user].name] = allAppUsers[user];
-            // HERE: re-calculate what their flux 'should' be, add flux setTimeout
-            // HERE: once we have scripts rolling, scroll through their townships and figure out what the results of -those- should be, too, if applicable
+Township.find()
+    .then(allAppTownships => {
+        for (const township in allAppTownships) {
+            // Updated allUsers above, and then adjusted below to match; test later to ensure all townships load properly
+            allTownships[allAppTownships[township].townID] = allAppTownships[township];
         }
-        Township.find()
-            .then(allAppTownships => {
-                for (const township in allAppTownships) {
-                    // Updated allUsers above, and then adjusted below to match; test later to ensure all townships load properly
-                    allTownships[allAppTownships[township].townID] = allAppTownships[township];
+
+        // HERE: allTownships[0] should be Zenithica, so if it isn't populated for some reason, init it here AND save it
+        if (allTownships[0] === undefined) {
+            console.log(`Server indicates Zenithica is currently A COMPLETE FIGMENT OF IMAGINATION. We should probably fix that...`);
+            
+            allTownships[0] = {
+                name: 'Zenithica',
+                townID: 0,
+                creator: 'Dog',
+                admins: 'Dog',
+                members: 'everyone',
+                history: [],
+                creationTime: new Date(),
+                fluxSpent: 0,
+                regionMap: [],
+                regionEvents: {},
+                regionStructures: {},
+                townMap: [],
+                townEvents: {},
+                townStructures: {}, // can set up first 'shops' and training and such here
+                npcs: {},
+                mobs: {},
+                townSize: 9999,
+            }
+            // HERE, steps: 
+            // 1) create all the basic variables Zenithica should have to function properly via allTownshops[0] = {...}
+            // 2) manually save the township into the DB (the saveTownship fxn requires the township to previously exist),
+            //  - OR - we can make a saveNewTownship fxn to do it for us, which actually seems wise
+            // 3) call saveTownship fxn appropriately
+            // 4) profit?
+        }
+
+        User.find()
+            .then(allAppUsers => {
+                for (const user in allAppUsers) {
+                    delete allAppUsers[user].salt;
+                    delete allAppUsers[user].hash;
+                    allUsers[allAppUsers[user].name] = allAppUsers[user];
+
+                    if (allUsers[allAppUsers[user].name].townships === undefined) allUsers[allAppUsers[user].name].townships = {};
+                    allUsers[allAppUsers[user].name].townships[0] = allTownships[0];
+
+                    // we can make 'special' rules for Zenithica access since it's a universal chat
+
+                    // HERE: re-calculate what their flux 'should' be, add flux setTimeout
+                    // HERE: once we have scripts rolling, scroll through their townships and figure out what the results of -those- should be, too, if applicable
                 }
 
-                // HERE: allTownships[0] should be Zenithica, so if it isn't populated for some reason, init it here AND save it
-                if (allTownships[0] === undefined) {
-                    console.log(`Server indicates Zenithica is currently A COMPLETE FIGMENT OF IMAGINATION. We should probably fix that...`);
-                    allTownships[0] = {
-                        name: 'Zenithica',
-                        townID: 0,
-                        creator: 'Dog',
-                        admins: 'Dog',
-                        members: 'everyone',
-                        history: [],
-                        creationTime: new Date(),
-                        fluxSpent: 0,
-                        regionMap: [],
-                        regionEvents: {},
-                        regionStructures: {},
-                        townMap: [],
-                        townEvents: {},
-                        townStructures: {}, // can set up first 'shops' and training and such here
-                        npcs: {},
-                        mobs: {},
-                        townSize: 9999,
-                    }
-                    // HERE, steps: 
-                    // 1) create all the basic variables Zenithica should have to function properly via allTownshops[0] = {...}
-                    // 2) manually save the township into the DB (the saveTownship fxn requires the township to previously exist),
-                    //  - OR - we can make a saveNewTownship fxn to do it for us, which actually seems wise
-                    // 3) call saveTownship fxn appropriately
-                    // 4) profit?
-                }
 
-                // HERE: final prep work for the app -- tbd
+                // HERE: final prep work for the app's server boot load -- tbd
 
                 server.listen(PORT, () => console.log(`Township Chatventures is loaded and ready to play!`));
 
             })
-            .catch(err => console.log(`Failed to start server due to error loading townships: ${err}`));
+            .catch(err => console.log(`Failed to start server due to error loading users: ${err}`));
     })
-    .catch(err => console.log(`Failed to start server due to error loading users: ${err}`));
+    .catch(err => console.log(`Failed to start server due to error loading townships: ${err}`));
+
+// User.find()
+//     .then(allAppUsers => {
+//         for (const user in allAppUsers) {
+//             delete allAppUsers[user].salt;
+//             delete allAppUsers[user].hash;
+//             allUsers[allAppUsers[user].name] = allAppUsers[user];
+//             // HERE: re-calculate what their flux 'should' be, add flux setTimeout
+//             // HERE: once we have scripts rolling, scroll through their townships and figure out what the results of -those- should be, too, if applicable
+//         }
+//         Township.find()
+//             .then(allAppTownships => {
+//                 for (const township in allAppTownships) {
+//                     // Updated allUsers above, and then adjusted below to match; test later to ensure all townships load properly
+//                     allTownships[allAppTownships[township].townID] = allAppTownships[township];
+//                 }
+
+//                 // HERE: allTownships[0] should be Zenithica, so if it isn't populated for some reason, init it here AND save it
+//                 if (allTownships[0] === undefined) {
+//                     console.log(`Server indicates Zenithica is currently A COMPLETE FIGMENT OF IMAGINATION. We should probably fix that...`);
+//                     allTownships[0] = {
+//                         name: 'Zenithica',
+//                         townID: 0,
+//                         creator: 'Dog',
+//                         admins: 'Dog',
+//                         members: 'everyone',
+//                         history: [],
+//                         creationTime: new Date(),
+//                         fluxSpent: 0,
+//                         regionMap: [],
+//                         regionEvents: {},
+//                         regionStructures: {},
+//                         townMap: [],
+//                         townEvents: {},
+//                         townStructures: {}, // can set up first 'shops' and training and such here
+//                         npcs: {},
+//                         mobs: {},
+//                         townSize: 9999,
+//                     }
+//                     // HERE, steps: 
+//                     // 1) create all the basic variables Zenithica should have to function properly via allTownshops[0] = {...}
+//                     // 2) manually save the township into the DB (the saveTownship fxn requires the township to previously exist),
+//                     //  - OR - we can make a saveNewTownship fxn to do it for us, which actually seems wise
+//                     // 3) call saveTownship fxn appropriately
+//                     // 4) profit?
+//                 }
+
+//                 // HERE: final prep work for the app -- tbd
+
+//                 server.listen(PORT, () => console.log(`Township Chatventures is loaded and ready to play!`));
+
+//             })
+//             .catch(err => console.log(`Failed to start server due to error loading townships: ${err}`));
+//     })
+//     .catch(err => console.log(`Failed to start server due to error loading users: ${err}`));
 
 
 // Before letting the port listen, we want to fetch all USERS and TOWNSHIPS into live server memory.

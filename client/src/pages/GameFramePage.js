@@ -8,8 +8,11 @@ export default function GameFramePage({ state, dispatch }) {
     const [newTownshipSpecs, setNewTownshipSpecs] = useState({
         name: ''
     });
+
     function handleNewTownshipCreation() {
         // may add e to preventDefault() on if refactor to be form-friendly
+
+        if (newTownshipSpecs.name.length > 5) return sendSocketData({event: 'create_township', township: newTownshipSpecs});
 
     }
 
@@ -52,10 +55,15 @@ export default function GameFramePage({ state, dispatch }) {
             // HERE: dispatch townshipData to context so we can load currentTownship details
         });
 
+        socket.on('alert', alertData => {
+            // structure the alertData for type and message/echo
+            alert(`Received an alert from the backend!`);
+        })
+
         return () => {
             // socket.disconnect();
             // ok, yeah, definitely DON'T disconnect here :P
-            // socket.off may be prudent, though; look into that
+            // socket.off may be prudent, however (worth some further research)
         }
 
     }, [socket]);
@@ -69,8 +77,15 @@ export default function GameFramePage({ state, dispatch }) {
             <button onClick={logout} style={{position: 'fixed', top: '2rem', right: '2rem', width: '50px', height: '50px', color: 'white', background: '#0AF'}}>LOG OUT</button>
             
             <div style={{position: 'absolute', display: 'flex', padding: '1rem', width: '400px', height: '100px', borderRadius: '0.8rem', border: '1px solid hsla(225,90%,80%,0.8)'}}>
-                {state?.name} <br/> Status OK! <br/> 0 money :-0 <br/> <button style={{marginLeft: '1rem'}}>Notifications & Such</button>
+                {state?.name} <br/> Status OK! <br/> 0 money :-0 <br/> 0/0 flux <br/> <button style={{marginLeft: '1rem'}}>Notifications & Such</button>
             </div>
+
+            {/* PLAYSPACE */}
+            {/* <div style={{textAlign: 'center', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: '999', position: 'fixed', top: '0', left: '0', width: '100vw', height: '100vh', background: 'white'}}>
+                HERE: basic animation tests<br/>
+                Make an 'enemy' div and maybe some buttons that showcase different animations<br/>
+                ... probably after getting further in Study Buddies :P
+            </div> */}
 
             {/* VIEW ALL TOWNSHIPS SXN */}
             { state?.playState === 'viewTownships' && 
@@ -88,16 +103,32 @@ export default function GameFramePage({ state, dispatch }) {
                     <h1>CREATE A LITTLE TOWN IN A LITTLE WORLD</h1>
                     <button style={{padding: '0.8rem', fontWeight: '600', alignSelf: 'flex-start'}} onClick={() => dispatch({type: actions.UPDATE_PLAYSTATE, payload: 'viewTownships'})}>Back to Viewing</button>
 
+                    <label>Township Name</label>
                     <input style={{marginTop: '1rem', fontSize: '1.2rem', padding: '0.8rem'}} type="text" value={newTownshipSpecs.name} onChange={e => setNewTownshipSpecs({...newTownshipSpecs, name: e.target.value})}></input>
+                    
+                    <p>Create your class for the township, user!</p>
+                    <p>Select starting structs</p>
+                    <p>Worldcore selection</p>
+                    
                     <button style={{marginTop: '1rem'}} onClick={handleNewTownshipCreation}>Create!</button>
                 </div>
             }
 
             {/* VIEW SINGLE TOWNSHIP SXN */}
             { state?.playState === 'viewSingleTownship' && 
-                <div style={{position: 'relative', top: '10vh', display: 'flex', border: '2px solid #0AF', borderRadius: '6px', flexDirection: 'column', alignItems: 'center', width: '100%', padding: '1rem'}}>
+                <div style={{position: 'relative', display: 'flex', border: '2px solid #0AF', borderRadius: '6px', flexDirection: 'column', alignItems: 'center', width: '100%', padding: '1rem'}}>
                     <button onClick={() => dispatch({type: actions.UPDATE_PLAYSTATE, payload: 'viewTownships'})}>Back to All Townships</button>
                     <h1>[ {state?.currentTownship?.name} ]</h1>
+                    
+                    <div id='mapWindow' style={{width: '80%', borderRadius: '1rem', border: '1px solid purple', height: '50vh'}}>
+                        {/* 
+                            canvas will likely live here
+                            need to consider now to 'nest' or stack views so that this is always showing the proper stuff to user
+                            it's all client-side info, though; the 'info' will update through the socket, but all the details of zoom, area, rendering live here
+
+                            ... 'drawing' the elements of the town and adding further elements of animation/animationFrames should be a fun challenge!
+                        */}
+                    </div>
                 </div>
             }
 

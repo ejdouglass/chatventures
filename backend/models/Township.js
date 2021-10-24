@@ -7,6 +7,7 @@ const TownshipSchema = new Schema({
     creator: {type: String, required: true},
     admins: {type: Object, required: true},
     members: {type: Object, required: true},
+    joinRule: {type: String, required: true},
     history: Array,
     creationTime: Date,
     fluxSpent: Number,
