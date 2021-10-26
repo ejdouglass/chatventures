@@ -25,7 +25,7 @@ export const Reducer = (state, action) => {
             return {...state, playState: action.payload};
         }
         case actions.LOAD_CHARACTER: {
-            return {...action.payload, playState: 'viewTownships'};
+            return {...action.payload, playState: state.playState === undefined ? 'viewTownships' : state.playState};
         }
         case actions.LOAD_TOWNSHIP: {
             return {...state, currentTownship: action.payload};

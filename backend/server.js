@@ -19,9 +19,9 @@ const io = socketIo(server, {
     }
 });
 
-let allTownships = {};
+let allTownships = {}; // keys are townshipIDs
 let allChats = {};
-let allUsers = {};
+let allUsers = {}; // keys are usernames, as they are protected and unique
 
 function rando(min, max) {
     return Math.floor(Math.random() * (max - min) + min);
@@ -142,9 +142,161 @@ io.on('connection', (socket) => {
                 });
 
                 // HERE: gotta do some finagling to set up the initial township details based on the initially provided data plus random shenanigans
-                // can make a fxn whose job is to create a glorious township obj with its own personality and then sail away from there
+                //      ...ultimately, make a fxn whose job is to create a glorious township obj with its own personality and then sail away from there
 
-                return;
+
+                console.log(`New township with name ${data.township.name} is being generated!`);
+                let newTownship = new Township({
+                    name: data.township.name,
+                    townID: generateRandomID('twn'),
+                    creator: thisUser.name,
+                    admins: {},
+                    members: {},
+                    townStructures: {},
+                    privacy: data.township.privacy
+                });
+                const newTownDate = new Date();
+                newTownship.admins[thisUser.name] = {};
+                newTownship.members[thisUser.name] = {joined: newTownDate, status: 'admin'};
+                Object.keys(data.township.invitees).forEach(invitee => {
+                    newTownship.members[invitee] = {status: 'invitee', joined: newTownDate};
+                });
+                newTownship.townStructures.townSquare = {
+                    name: 'Town Square',
+                    location: undefined,
+                    type: undefined,
+                    mods: undefined
+                };
+                newTownship.townStructures.generalStore = {
+                    name: 'General Store',
+                    location: undefined,
+                    type: undefined,
+                    mods: undefined,
+                    stock: []
+                };
+                newTownship.townStructures.tavern = {
+                    name: 'Tavern',
+                    location: undefined,
+                    type: undefined,
+                    mods: undefined,
+                    stock: [],
+                    patrons: []
+                };
+                newTownship.townStructures.scoutsTent = {
+                    name: `Scouts' Tent`,
+                    location: undefined,
+                    type: undefined,
+                    mods: undefined,
+                    provisions: [],
+                    map: {},
+                };
+                newTownship.townStructures.stockpile = {
+                    name: 'Stockpile',
+                    location: undefined,
+                    type: undefined,
+                    mods: undefined,
+                    inventory: {
+                        capacity: 500,
+                        wood: 10,
+                        hardwood: 0,
+                        heartwood: 0,
+                        rock: 10,
+                        bedrock: 0,
+                        water: 10,
+                        herbs: 0,
+                        iron: 0,
+                        coal: 0
+                    }
+                };
+
+                // WHOOPS: gotta add the freshly created township to the creator's list of townships (after save, probably)...
+                // ALSO: gotta update everyone that's receiving an INVITE, crunking up their TOWNSHIPS by 1
+                //  ... consider: when it's JUST an invite, allow viewing and "ACCEPT," which allows chatting but not playing?
+
+                newTownship.save()
+                    .then(createdTownship => {
+                        allTownships[createdTownship.townID] = createdTownship;
+                        // The township already has records of all members and potential members; below adds references to the township to the users themselves
+                        allUsers[thisUser.name].townships[createdTownship.townID] = {
+                            status: 'admin',
+                            joined: newTownDate
+                        };
+                        Object.keys(createdTownship.members).forEach(memberName => {
+                            if (memberName !== thisUser.name) allUsers[memberName].townships[createdTownship.townID] = {status: 'invitee', joined: newTownDate};
+                            saveUser(allUsers[memberName]);
+                            // HERE: socket.emit updated user data to this memberName target
+                            // use the actions.LOAD_CHARACTER dispatch on the front-ent
+                            io.to(memberName).emit('update_user', allUsers[memberName]);
+                        });
+                        // ALSO: gotta socket to everybody involved to give them fresh data... can loop through MEMBERS for that
+
+                        socket.emit('alert', `Created a new township.`);
+                        return socket.emit('township_view_data', allTownships[createdTownship.townID]);
+                    })
+                    .catch(err => {
+                        return console.log(err);
+                    });
+
+                // createdUser.save()
+                //     .then(freshUser => {
+                //         const token = craftAccessToken(freshUser.name, freshUser.userID);
+                //         let userToLoad = JSON.parse(JSON.stringify(freshUser));
+                //         userToLoad.appState = 'home';
+                //         delete userToLoad.salt;
+                //         delete userToLoad.hash;
+                //         allUsers[userToLoad.name] = userToLoad;
+                //         // userToLoad.whatDo = 'dashboard';
+
+                //         // Can pop a new alert down in the client based off the ECHO here, so we can change that a bit for nuance
+                //         res.status(200).json({success: true, echo: `${userToLoad.name} is up and ready to go.`, payload: {user: userToLoad, token: token}});
+                //     })
+                //     .catch(err => {
+                //         res.json({success: false, echo: `Something went wrong attempting to save the new character: ${JSON.stringify(err)}`});
+                //     })            
+                
+                // for safety, it would behoove us to scoot townID out, generate it, ensure it is UNIQUE, and *then* get to saving                
+
+
+                /*
+
+                    FIRST PASS: just make the thing; add nuance later
+
+                    township creation: we're getting an object, data.township, with {name, privacy, invitees}
+                    - invitees is an object whose keys are usernames
+
+                    we then need to fill out any other township-required info and generate the township/region specs
+                    -- REQUIRED: name, townID, creator (string), admins (object), members (object), privacy (data.township.privacy)
+                    -- also populate: history (array), creationTime (date), 
+
+                    -- townMap and regionMap are both objects which can include coord keys containing tileset data, as well as townMap.size and other variables
+                    -- townStructures can hold the data for interactivity data for structs; townMap can hold image and reference data for said structs
+
+                    -- mods is a new entry that gives, as expected, mods to stuff like lumber yield, healing rate, or whatever else
+
+                    -- STARTING STRUCTS
+                        - General Store: weapons, armor, items, tools
+                            {stock, mods}
+                        - Town Square: announcements, quests, township info, guest NPC's/caravan/merchants
+                            {announcements, quests, info, visitors, mods}
+                        - Tavern: hang out, traveling NPC's
+                            {stock, patrons, mods}
+                        - Scouts' Tent: basic healing, basic provisions, scouting info
+                            {provisions, map, mods}
+                        - Stockpile: building materials, equipment for NPC's
+                            {wood, hardwood, heartwood, rock, bedrock, water, herbs, iron, coal}
+
+                    
+                */
+            }
+            case 'request_invitees_list': {
+                // since we haven't yet defined 'privacy' and connections, for now, this just blanket grabs every valid user :P
+                let validInviteesArray = [];
+                Object.keys(allUsers).forEach(userKey => {
+                    if (allUsers[userKey] && userKey !== thisUser.name) {
+                        validInviteesArray.push(userKey);
+                    }
+                });
+                return socket.emit('invitees_list_data', validInviteesArray);
             }
         }
         // HERE: probably a switch to check data.type - switch (data.type)

@@ -26,11 +26,16 @@ export default function App() {
   SCRATCHPAD SIMPLICITY
   -- Realistically, nobody's gonna PLAY this. :P So. ABSOLUTE TECH DEMO. Nothing more. Don't kill yourself on this -- polish LATER.
   -- The goal is to get to PRPL and FLY. And after that, GAMES! And experiences! WHOO
-  -- So, define and implement MOST BASIC FORMS:
+
+  -- Simplifying: character/user has ONE class equipped across all chats, one currency, one inventory
+
+  -- Define and implement MOST BASIC FORMS:
   1) Township/chat creation (mostly icon-based, with some text-based stuff, it IS chat after all) - standardize everything for now
-    [_] NAME the township/chat
-    [_] Add chat privacy (who can join, 'joinRule')
-    [_] Add sendable join invites (from Connections)
+    [x] NAME the township/chat
+    [x] Add chat privacy (who can join, 'joinRule') of OPEN or PRIVATE
+    [x] Add sendable join invites (from all eligible users -- connections, public users)
+    [_] Use this information to actually create a new township on the server & in DB with 'standard' setup
+      -> CURRENT: townships aren't populating their names, though they ARE populating on GameFrame.
   2) 
 
   
@@ -49,7 +54,7 @@ export default function App() {
     -> critters/monsters for casual hunting trips
   -- 'dungeons': n/a for now? Or really basic text adventures, at most. That could be fun.
   TOWNSTUFF
-  -- starter options: general store, town center, trades tent, barracks, tavern, stockpile, +homes/user camps
+  -- starter options: general store, town center, barracks, tavern, stockpile, +homes/user camps
 
   FOR NOW: just populate the data in a broad fashion; can interpret it more specifically later
   -> TOWN can have images, MAP can have images, but each map square is strictly menu-based-only for now
@@ -109,5 +114,13 @@ export default function App() {
   [ 7 ] First 'minigame': COMBAT! Go, fight, win, yay. Get this done, along with the above, and I think we're pretty much basically launch-ready... well, actually, let's do 8:
 
   [ 8 ] 'Interactions' ... fun little ways to boost, gift, and exchange with each other throughout the day(s)
+
+
+
+
+  LESSONS LEARNED:
+  -- it makes sense to decide on separate components/logic early on BEFORE construction, as it's kind of a pain to dig through and extract separate component logic
+    for every single conceptual component from a 'master' component (example from above: createTownship logic)
+  -- ...
 
 */

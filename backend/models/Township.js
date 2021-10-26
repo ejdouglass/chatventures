@@ -7,24 +7,26 @@ const TownshipSchema = new Schema({
     creator: {type: String, required: true},
     admins: {type: Object, required: true},
     members: {type: Object, required: true},
-    joinRule: {type: String, required: true},
+    privacy: {type: String, required: true},
     history: Array,
     creationTime: Date,
     fluxSpent: Number,
-    regionMap: Array,
+    regionMap: Object,
     regionEvents: Object,
     regionStructures: Object,
-    townMap: Array,
+    townMap: Object,
     townEvents: Object,
     townStructures: Object,
     npcs: Object,
-    mobs: Object,
+    factions: Object,
     townSize: Number,
-
+    mods: Object
 }, { minimize: false });
 
 // Extra consideration, maybe: 'danger level,' indicating overall aggressiveness of the world
 // Or maybe sub-variables for different types of danger/threats
+
+// 'road layer' for rendering roads, which can be extrapolated into a static image until road layout changes
 
 // Additional variable sketchery: 
 // privacy? joinRules? visibility? threatLevels? floraProfile? faunaProfile? biomeProfile? 

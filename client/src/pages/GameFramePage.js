@@ -5,9 +5,21 @@ export default function GameFramePage({ state, dispatch }) {
     const socket = useContext(SocketContext);
 
     // NOTE: some of these states are 'temporarily' living here for logic-testing purposes and will/should scoot off to separate components in the future
+    // new township creation definitely fits that bill :P
     const [newTownshipSpecs, setNewTownshipSpecs] = useState({
-        name: ''
+        name: '',
+        privacy: 'open',
+        invitees: {},
+        potentialInvitees: []
     });
+
+    function addInvitee(user, index) {
+        let newInviteesObj = {...newTownshipSpecs.invitees};
+        newInviteesObj[user] = true;
+        let newPotentialInvitees = newTownshipSpecs.potentialInvitees;
+        newPotentialInvitees.splice(index, 1);
+        return setNewTownshipSpecs({...newTownshipSpecs, invitees: newInviteesObj, potentialInvitees: newPotentialInvitees});
+    }
 
     function handleNewTownshipCreation() {
         // may add e to preventDefault() on if refactor to be form-friendly
@@ -19,9 +31,6 @@ export default function GameFramePage({ state, dispatch }) {
 
     function sendSocketData(dataObj) {
         // so we'd use this fxn by attaching an obj with {event: 'socket_event', OTHERSTUFF, and token: token below}
-        // console.log(`Emitting data to socket`)
-        // console.log(`DataObj in this case: ${JSON.stringify(dataObj)}`)
-        // console.log(`And our to-ken: ${localStorage.getItem('townshipJWT')}`)
         return socket.emit('data_from_client', {...dataObj, token: localStorage.getItem('townshipJWT')});
     }
 
@@ -55,10 +64,18 @@ export default function GameFramePage({ state, dispatch }) {
             // HERE: dispatch townshipData to context so we can load currentTownship details
         });
 
+        socket.on('invitees_list_data', inviteesArray => {
+            setNewTownshipSpecs({...newTownshipSpecs, potentialInvitees: inviteesArray});
+        });
+
         socket.on('alert', alertData => {
             // structure the alertData for type and message/echo
             alert(`Received an alert from the backend!`);
-        })
+        });
+
+        socket.on('update_user', userData => {
+            return dispatch({type: actions.LOAD_CHARACTER, payload: userData});
+        });
 
         return () => {
             // socket.disconnect();
@@ -67,6 +84,12 @@ export default function GameFramePage({ state, dispatch }) {
         }
 
     }, [socket]);
+
+    useEffect(() => {
+        if (state?.playState === 'createTownship') {
+            sendSocketData({event: 'request_invitees_list'});
+        }
+    }, [state.playState])
 
     // for the time being, I think this is the 'root' of the gameplay components, using 'playState' state var to dictate view
     // import an Alert component to live in here ... likely a fixed, high z-indexed fella
@@ -93,6 +116,9 @@ export default function GameFramePage({ state, dispatch }) {
                     <span style={{alignSelf: 'flex-end', marginBottom: '1.5rem', fontSize: 'calc(1rem + 0.5vw)'}}>I LIST THE CHATS :-D</span>
                     <button style={{padding: '1rem', fontWeight: '700', fontSize: '1.5rem', letterSpacing: '2px', marginBottom: '1.5rem'}} onClick={() => selectTownship(0)}>I am ZENITHICA!</button>
                     <button style={{padding: '1rem', fontWeight: '700', fontSize: '1.5rem', letterSpacing: '2px', marginBottom: '1.5rem'}} onClick={() => dispatch({type: actions.UPDATE_PLAYSTATE, payload: 'createTownship'})}>+ Create New Township</button>
+                    {Object.keys(state?.townships).map((township, index) => (
+                        <button key={index}>{state?.townships[township].name}</button>
+                    ))}
                 </div>
             }
 
@@ -103,12 +129,24 @@ export default function GameFramePage({ state, dispatch }) {
                     <h1>CREATE A LITTLE TOWN IN A LITTLE WORLD</h1>
                     <button style={{padding: '0.8rem', fontWeight: '600', alignSelf: 'flex-start'}} onClick={() => dispatch({type: actions.UPDATE_PLAYSTATE, payload: 'viewTownships'})}>Back to Viewing</button>
 
-                    <label>Township Name</label>
-                    <input style={{marginTop: '1rem', fontSize: '1.2rem', padding: '0.8rem'}} type="text" value={newTownshipSpecs.name} onChange={e => setNewTownshipSpecs({...newTownshipSpecs, name: e.target.value})}></input>
+                    <label>Township Name:</label>
+                    <input placeholder={'Township name'} style={{marginTop: '1rem', fontSize: '1.2rem', padding: '0.8rem'}} type="text" value={newTownshipSpecs.name} onChange={e => setNewTownshipSpecs({...newTownshipSpecs, name: e.target.value})}></input>
                     
-                    <p>Create your class for the township, user!</p>
-                    <p>Select starting structs</p>
-                    <p>Worldcore selection</p>
+                    
+                    <div style={{display: 'flex', border: '1px solid red', width: '50%', marginTop: '1rem', justifyContent: 'space-around'}}>
+                        <label>Privacy: </label>
+                        <button style={{height: '3rem', color: 'white', background: newTownshipSpecs.privacy === 'open' ? 'green' : 'red'}} onClick={() => setNewTownshipSpecs({...newTownshipSpecs, privacy: 'open'})}>Open</button>
+                        <button style={{height: '3rem', color: 'white', background: newTownshipSpecs.privacy === 'private' ? 'green' : 'red'}} onClick={() => setNewTownshipSpecs({...newTownshipSpecs, privacy: 'private'})}>Private</button>
+                    </div>
+
+                    <div>
+                        <p>Currently inviting: </p>
+                        {Object.keys(newTownshipSpecs.invitees).map(user => (<p key={user}>{user}</p>))}
+                        <p>Invite some FOLKS:</p>
+                        {newTownshipSpecs.potentialInvitees.map((user, index) => (
+                            <button key={index} onClick={() => addInvitee(user, index)}>{user}</button>
+                        ))}
+                    </div>
                     
                     <button style={{marginTop: '1rem'}} onClick={handleNewTownshipCreation}>Create!</button>
                 </div>
