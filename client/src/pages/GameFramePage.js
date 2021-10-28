@@ -12,6 +12,7 @@ export default function GameFramePage({ state, dispatch }) {
         invitees: {},
         potentialInvitees: []
     });
+    const [textMessage, setTextMessage] = useState('');
 
     function addInvitee(user, index) {
         let newInviteesObj = {...newTownshipSpecs.invitees};
@@ -28,6 +29,11 @@ export default function GameFramePage({ state, dispatch }) {
 
     }
 
+    function submitText(e) {
+        e.preventDefault();
+        sendSocketData({event: 'send_text_message', message: textMessage, townID: state.currentTownship.townID});
+        return setTextMessage(``);
+    }
 
     function sendSocketData(dataObj) {
         // so we'd use this fxn by attaching an obj with {event: 'socket_event', OTHERSTUFF, and token: token below}
@@ -56,12 +62,11 @@ export default function GameFramePage({ state, dispatch }) {
         socket.emit('login', localStorage.getItem('townshipJWT'));
 
         socket.on('township_view_data', townshipData => {
-            // alert(`Oh you want to look at ${townshipData?.name}! Well, soon. I'll help you with that soon, I promise.`);
-            // HERE: set playState to viewSingleTownship?
             //  ... consider how to parse additional sub-layers (i.e. navigating menus within viewSingleTownship; maybe building a 'view stack')
-            dispatch({type: actions.UPDATE_PLAYSTATE, payload: 'viewSingleTownship'});
+            if (state?.playState !== 'viewSingleTownship') dispatch({type: actions.UPDATE_PLAYSTATE, payload: 'viewSingleTownship'});
             return dispatch({type: actions.LOAD_TOWNSHIP, payload: townshipData});
-            // HERE: dispatch townshipData to context so we can load currentTownship details
+            // NOTE: this is for INITIAL view as well as while viewing and the township updates;
+            //  ensure that we have 'stack view' variables in place later to avoid unnecessary jerkiness
         });
 
         socket.on('invitees_list_data', inviteesArray => {
@@ -77,6 +82,20 @@ export default function GameFramePage({ state, dispatch }) {
             return dispatch({type: actions.LOAD_CHARACTER, payload: userData});
         });
 
+        socket.on('console_message', message => {
+            return console.log(message);
+        });
+
+        socket.on('unread_township_update', townshipData => {
+            // ideally, we can set this up to ONLY receive the new info for a specific township
+            return;
+        });
+
+        socket.on('current_township_update', townshipData => {
+            // we may be able to combine this with above and just separate out the 'result' based on currentTownshipViewed?
+            return;
+        });
+
         return () => {
             // socket.disconnect();
             // ok, yeah, definitely DON'T disconnect here :P
@@ -89,6 +108,7 @@ export default function GameFramePage({ state, dispatch }) {
         if (state?.playState === 'createTownship') {
             sendSocketData({event: 'request_invitees_list'});
         }
+        if (state?.playState !== 'viewSingleTownship') return sendSocketData({event: 'unview_township'});
     }, [state.playState])
 
     // for the time being, I think this is the 'root' of the gameplay components, using 'playState' state var to dictate view
@@ -114,10 +134,10 @@ export default function GameFramePage({ state, dispatch }) {
             { state?.playState === 'viewTownships' && 
                 <div style={{position: 'absolute', display: 'flex', flexDirection: 'column', border: '1px solid green', borderRadius: '1rem', padding: '1rem', top: '150px', left: '1rem', width: '80vw', marginLeft: '10vw', height: '60vh'}}>
                     <span style={{alignSelf: 'flex-end', marginBottom: '1.5rem', fontSize: 'calc(1rem + 0.5vw)'}}>I LIST THE CHATS :-D</span>
-                    <button style={{padding: '1rem', fontWeight: '700', fontSize: '1.5rem', letterSpacing: '2px', marginBottom: '1.5rem'}} onClick={() => selectTownship(0)}>I am ZENITHICA!</button>
+                    {/* <button style={{padding: '1rem', fontWeight: '700', fontSize: '1.5rem', letterSpacing: '2px', marginBottom: '1.5rem'}} onClick={() => selectTownship(0)}>I am ZENITHICA!</button> */}
                     <button style={{padding: '1rem', fontWeight: '700', fontSize: '1.5rem', letterSpacing: '2px', marginBottom: '1.5rem'}} onClick={() => dispatch({type: actions.UPDATE_PLAYSTATE, payload: 'createTownship'})}>+ Create New Township</button>
                     {Object.keys(state?.townships).map((township, index) => (
-                        <button key={index}>{state?.townships[township].name}</button>
+                        <button style={{padding: '1rem', fontWeight: '700', fontSize: '1.5rem', letterSpacing: '2px', marginBottom: '1.5rem'}} onClick={() => selectTownship(township)} key={index}>{state?.townships[township].name || `MYSTERY`}</button>
                     ))}
                 </div>
             }
@@ -154,19 +174,48 @@ export default function GameFramePage({ state, dispatch }) {
 
             {/* VIEW SINGLE TOWNSHIP SXN */}
             { state?.playState === 'viewSingleTownship' && 
-                <div style={{position: 'relative', display: 'flex', border: '2px solid #0AF', borderRadius: '6px', flexDirection: 'column', alignItems: 'center', width: '100%', padding: '1rem'}}>
+                <div style={{position: 'relative', display: 'flex', border: '2px solid #0AF', borderRadius: '6px', flexDirection: 'column', alignItems: 'center', width: '100%', height: '90vh', padding: '1rem'}}>
                     <button onClick={() => dispatch({type: actions.UPDATE_PLAYSTATE, payload: 'viewTownships'})}>Back to All Townships</button>
                     <h1>[ {state?.currentTownship?.name} ]</h1>
                     
-                    <div id='mapWindow' style={{width: '80%', borderRadius: '1rem', border: '1px solid purple', height: '50vh'}}>
-                        {/* 
-                            canvas will likely live here
-                            need to consider now to 'nest' or stack views so that this is always showing the proper stuff to user
-                            it's all client-side info, though; the 'info' will update through the socket, but all the details of zoom, area, rendering live here
+                    <div style={{width: '100%', border: '1px solid green', display: 'flex', flexDirection: 'row', justifyContent: 'space-around'}}>
+                        <div id='mapWindow' style={{width: '40%', borderRadius: '1rem', border: '1px solid purple', height: '70vh'}}>
+                            <p>Interactables go here</p>
+                            {state?.currentTownship?.townStructures && Object.keys(state?.currentTownship?.townStructures).map((structID, index) => (
+                                <button key={index}>{state?.currentTownship?.townStructures[structID]?.name || 'Phantom Plot'}</button>
+                            ))}
+                            {/* 
+                                canvas will likely live here
+                                need to consider now to 'nest' or stack views so that this is always showing the proper stuff to user
+                                it's all client-side info, though; the 'info' will update through the socket, but all the details of zoom, area, rendering live here
 
-                            ... 'drawing' the elements of the town and adding further elements of animation/animationFrames should be a fun challenge!
-                        */}
+                                ... 'drawing' the elements of the town and adding further elements of animation/animationFrames should be a fun challenge!
+                            */}
+                        </div>
+
+                        <div id='messageWindow' style={{position: 'relative', width: '40%', borderRadius: '1rem', border: '1px solid blue', height: '70vh'}}>
+                            {/* 
+                                canvas will likely live here
+                                need to consider now to 'nest' or stack views so that this is always showing the proper stuff to user
+                                it's all client-side info, though; the 'info' will update through the socket, but all the details of zoom, area, rendering live here
+
+                                ... 'drawing' the elements of the town and adding further elements of animation/animationFrames should be a fun challenge!
+                            */}
+                            <div style={{height: '80%', border: '1px solid red'}}>
+                                {state?.currentTownship?.history.map((historyObject, index) => (
+                                    <p key={index}>{historyObject?.agent || `Mystery Person`} : {historyObject?.echo}</p>
+                                ))}
+                            </div>
+
+                            <form onSubmit={submitText}>
+                                <input style={{position: 'absolute', bottom: '1rem', width: '100%'}} type='text' placeholder={`Text Message or Action`} value={textMessage} onChange={e => setTextMessage(e.target.value)}></input>
+                            </form>
+                            
+                        </div>                                      
+
+                    
                     </div>
+
                 </div>
             }
 

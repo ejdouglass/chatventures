@@ -20,6 +20,7 @@ const TownshipSchema = new Schema({
     npcs: Object,
     factions: Object,
     townSize: Number,
+    lastActivityTS: Date,
     mods: Object
 }, { minimize: false });
 

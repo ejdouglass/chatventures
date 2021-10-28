@@ -25,8 +25,8 @@ const UserSchema = new Schema({
     vault: Array,
     privacy: String,
     connections: Object,
-    activeChat: String, // id of township/chat being stared at currently, if applicable
-    townships: Object, // townID key: {status: 'invitee/witness/member/creator/admin', joined: Date()}
+    activeTownship: {type: String, default: 'none'}, // id of township/chat being stared at currently, if applicable
+    townships: Object, // townID key: {status: 'invitee/witness/member/creator/admin', joined: Date(), name: STRING, townID: STRING, history: ARRAY, unreadTotal, lastViewTS}
     chats: Object
 }, { minimize: false });
 

@@ -74,7 +74,7 @@ function saveUser(user) {
     const options = { new: true, useFindAndModify: false };
     User.findOneAndUpdate(filter, update, options)
         .then(updatedResult => {
-            console.log(`${updatedResult.name} has been updated.`);
+            console.log(`${updatedResult.name} has been saved and updated in the database.`);
             // HERE might be a good spot to do the server-user update? user[updatedResult.userID]... though, we'd be pulling stuff we don't want to share, hm
             // nevermind, just do it below
         })
@@ -116,6 +116,9 @@ io.on('connection', (socket) => {
         // HERE: all imaginable socket.join(SOCKETNAME) goes here
         // Include: personal name socket, all their chats/townships, zenithica of course, ...
         socket.join(thisUser.name);
+        Object.keys(thisUser.townships).forEach(townID => {
+            socket.join(townID);
+        });
         console.log(`${thisUser.name} has joined the game.`);
         
         // HERE: go through all their townships, socket.join their ids, and then zip through their history to get 'unread badge' figures
@@ -131,8 +134,16 @@ io.on('connection', (socket) => {
         }
         switch (data.event) {
             case 'view_township': {
-                // ADD: activeChat ID set for thisUser
+                // ADD: logic for only passing down the messages the user -should- see, based on how long they've been a member
+                // essentially, take the initial township obj, then tweak the history
+                // the client can handle parsing what's "new" for the township chat
+                allUsers[thisUser.name].activeTownship = data.townshipID;
+                console.log(`${allUsers[thisUser.name].name} has changed their active viewing to township with id ${data.townshipID}.`)
+                // going to hold off on saving the user's current township for now
                 return socket.emit('township_view_data', allTownships[data.townshipID]);
+            }
+            case 'unview_township': {
+                return allUsers[thisUser.name].activeTownship = 'none';
             }
             case 'create_township': {
                 // THIS: check to see if name available; if NO, return alert, if YES, create and return alert & instructions to client-nav into new township
@@ -219,40 +230,36 @@ io.on('connection', (socket) => {
                         // The township already has records of all members and potential members; below adds references to the township to the users themselves
                         allUsers[thisUser.name].townships[createdTownship.townID] = {
                             status: 'admin',
-                            joined: newTownDate
+                            joined: newTownDate,
+                            townID: createdTownship.townID,
+                            name: createdTownship.name
                         };
                         Object.keys(createdTownship.members).forEach(memberName => {
-                            if (memberName !== thisUser.name) allUsers[memberName].townships[createdTownship.townID] = {status: 'invitee', joined: newTownDate};
+                            if (memberName !== thisUser.name) allUsers[memberName].townships[createdTownship.townID] = {
+                                status: 'invitee', 
+                                joined: newTownDate,
+                                townID: createdTownship.townID,
+                                name: createdTownship.name,
+                                history: [],
+                                unreadTotal: 0,
+                                lastViewTS: newTownDate
+                            };
                             saveUser(allUsers[memberName]);
                             // HERE: socket.emit updated user data to this memberName target
                             // use the actions.LOAD_CHARACTER dispatch on the front-ent
                             io.to(memberName).emit('update_user', allUsers[memberName]);
+                            // io.to(memberName).emit('console_message', `Hi, you should have received new user data for a TOWNSHIP CREATION event.`);
                         });
                         // ALSO: gotta socket to everybody involved to give them fresh data... can loop through MEMBERS for that
 
                         socket.emit('alert', `Created a new township.`);
+                        allUsers[thisUser.name].activeTownship = createdTownship.townID;
                         return socket.emit('township_view_data', allTownships[createdTownship.townID]);
                     })
                     .catch(err => {
                         return console.log(err);
                     });
-
-                // createdUser.save()
-                //     .then(freshUser => {
-                //         const token = craftAccessToken(freshUser.name, freshUser.userID);
-                //         let userToLoad = JSON.parse(JSON.stringify(freshUser));
-                //         userToLoad.appState = 'home';
-                //         delete userToLoad.salt;
-                //         delete userToLoad.hash;
-                //         allUsers[userToLoad.name] = userToLoad;
-                //         // userToLoad.whatDo = 'dashboard';
-
-                //         // Can pop a new alert down in the client based off the ECHO here, so we can change that a bit for nuance
-                //         res.status(200).json({success: true, echo: `${userToLoad.name} is up and ready to go.`, payload: {user: userToLoad, token: token}});
-                //     })
-                //     .catch(err => {
-                //         res.json({success: false, echo: `Something went wrong attempting to save the new character: ${JSON.stringify(err)}`});
-                //     })            
+        
                 
                 // for safety, it would behoove us to scoot townID out, generate it, ensure it is UNIQUE, and *then* get to saving                
 
@@ -297,6 +304,50 @@ io.on('connection', (socket) => {
                     }
                 });
                 return socket.emit('invitees_list_data', validInviteesArray);
+            }
+            case 'send_text_message': {
+                // receiving: data.message, data.townID
+            
+                let rightNow = new Date();
+                let historyObj = {
+                    timestamp: rightNow,
+                    agent: thisUser.name,
+                    type: 'message',
+                    echo: data.message,
+                };
+                allTownships[data.townID].history.push(historyObj);
+                allTownships[data.townID].lastActivityTS = rightNow;
+                saveTownship(allTownships[data.townID]);
+
+                console.log(`BACKEND BEEP BOOP. Interacting with townID ${data.townID}.`);
+                console.log(`HEY. This township's members looks like this: ${JSON.stringify(allTownships[data.townID].members)}`)
+                Object.keys(allTownships[data.townID].members).forEach(memberName => {
+                    console.log(`BACKEND BOOP BEEP. Interacting with member ${memberName}.`);
+                    console.log(`This member's current activeTownship is ${allUsers[memberName].activeTownship}.`);
+                    if (allUsers[memberName].activeTownship === undefined) allUsers[memberName].activeTownship = 'none';
+                    if (allUsers[memberName].activeTownship === data.townID) {
+                        console.log(`This member is ACTIVELY IN THE CHAT, so we're handling that...`)
+                        // HERE: handle sending client data for user who is currently viewing this township with 'current_township_update' -- update ref with rightNow lastview, pass new history item to be viewed
+                        allUsers[memberName].townships[data.townID].lastViewTS = rightNow;
+                        // BRUTE FORCE MODE: just for testing, just gonna go ahead and slap the user with the entire new township
+                        // can (should) add nuance later :P
+                        io.to(memberName).emit('township_view_data', allTownships[data.townID]);
+
+                        // MYSTERY: we both get an ERROR and a SUCCESS right around here? eh?
+                        return saveUser(allUsers[memberName]);
+                    }
+                    // HERE: handle updating user's reference to the township, update their unreadTotal, then send down 'unread_township_update' info
+                    console.log(`This member isn't currently in the chat, so we're handling background adjustments.`);
+                    allUsers[memberName].townships[data.townID].unreadTotal += 1;
+                    return saveUser(allUsers[memberName]);
+                });
+                
+                // hm, sort out making sure user's township refs are core refs, and all MAIN township data such as history contents are in the townships themselves
+                // for non-current townships, just have to loop through and add to unreadTotal
+                // for current township, 
+                // changed 'lastActivityTS' for user into 'unreadTotal,' can just loop and increment for all currently non-viewed
+
+                return;
             }
         }
         // HERE: probably a switch to check data.type - switch (data.type)
@@ -376,18 +427,22 @@ app.post('/user/create', (req, res, next) => {
                     salt: salt,
                     hash: hash,
                     userID: generateRandomID('usr'),
-                    stats: nuStats
+                    stats: nuStats,
+                    townships: {}
                     // HERE, at some point: generate at least a static icon for their character, or iconSheet to animate from
                 });
+                createdUser.townships['zenithica'] = allTownships['zenithica'];
 
                 createdUser.save()
                     .then(freshUser => {
+                        
                         const token = craftAccessToken(freshUser.name, freshUser.userID);
                         let userToLoad = JSON.parse(JSON.stringify(freshUser));
                         userToLoad.appState = 'home';
                         delete userToLoad.salt;
                         delete userToLoad.hash;
                         allUsers[userToLoad.name] = userToLoad;
+                        allTownships['zenithica'].members[userToLoad.name] = allUsers[userToLoad.name];
                         // userToLoad.whatDo = 'dashboard';
 
                         // Can pop a new alert down in the client based off the ECHO here, so we can change that a bit for nuance
@@ -504,15 +559,15 @@ Township.find()
         }
 
         // HERE: allTownships[0] should be Zenithica, so if it isn't populated for some reason, init it here AND save it
-        if (allTownships[0] === undefined) {
+        if (allTownships['zenithica'] === undefined) {
             console.log(`Server indicates Zenithica is currently A COMPLETE FIGMENT OF IMAGINATION. We should probably fix that...`);
             
-            allTownships[0] = {
+            allTownships['zenithica'] = {
                 name: 'Zenithica',
-                townID: 0,
+                townID: 'zenithica',
                 creator: 'Dog',
                 admins: 'Dog',
-                members: 'everyone',
+                members: {},
                 history: [],
                 creationTime: new Date(),
                 fluxSpent: 0,
@@ -542,13 +597,29 @@ Township.find()
                     allUsers[allAppUsers[user].name] = allAppUsers[user];
 
                     if (allUsers[allAppUsers[user].name].townships === undefined) allUsers[allAppUsers[user].name].townships = {};
-                    allUsers[allAppUsers[user].name].townships[0] = allTownships[0];
+                    allUsers[allAppUsers[user].name].townships['zenithica'] = allTownships['zenithica'];
+                    const username = allAppUsers[user].name;
+                    // can later amend below if/when we add user/character birthday :P
+                    allTownships['zenithica'].members[username] = {status: 'member', joined: new Date()};
 
                     // we can make 'special' rules for Zenithica access since it's a universal chat
 
                     // HERE: re-calculate what their flux 'should' be, add flux setTimeout
                     // HERE: once we have scripts rolling, scroll through their townships and figure out what the results of -those- should be, too, if applicable
                 }
+
+                // UPDATE ZENITHICA - save
+
+                // sometimes townships get deleted; this is a first-pass attempt to control for that on loading
+                // can also add a similar check on attempting to access a township that no longer exists from client
+                Object.keys(allUsers).forEach(username => {
+                    Object.keys(allUsers[username].townships).forEach(townID => {
+                        if (allTownships[townID] === undefined) {
+                            delete allUsers[username].townships[townID];
+                            saveUser(allUsers[username]);
+                        }
+                    })
+                });
 
 
                 // HERE: final prep work for the app's server boot load -- tbd
