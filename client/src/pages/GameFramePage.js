@@ -1,4 +1,4 @@
-import React, {useContext, useState, useEffect} from 'react';
+import React, {useContext, useState, useEffect, useRef} from 'react';
 import { actions, SocketContext } from '../context';
 
 export default function GameFramePage({ state, dispatch }) {
@@ -13,6 +13,7 @@ export default function GameFramePage({ state, dispatch }) {
         potentialInvitees: []
     });
     const [textMessage, setTextMessage] = useState('');
+    const textBoxRef = useRef(null);
 
     function addInvitee(user, index) {
         let newInviteesObj = {...newTownshipSpecs.invitees};
@@ -63,6 +64,8 @@ export default function GameFramePage({ state, dispatch }) {
 
         socket.on('township_view_data', townshipData => {
             //  ... consider how to parse additional sub-layers (i.e. navigating menus within viewSingleTownship; maybe building a 'view stack')
+            // ADD: in context, can change 'unreadTotal' to 0; can also do it server-side
+            // coordinate with viewSingleTownship to ensure we 'jump to' proper part of chat ultimately
             if (state?.playState !== 'viewSingleTownship') dispatch({type: actions.UPDATE_PLAYSTATE, payload: 'viewSingleTownship'});
             return dispatch({type: actions.LOAD_TOWNSHIP, payload: townshipData});
             // NOTE: this is for INITIAL view as well as while viewing and the township updates;
@@ -87,8 +90,10 @@ export default function GameFramePage({ state, dispatch }) {
         });
 
         socket.on('unread_township_update', townshipData => {
-            // ideally, we can set this up to ONLY receive the new info for a specific township
-            return;
+            // receiving {townID, townshipObj}
+            // send the township obj and its id down, then create a new quick dispatch to fix it up
+            // console.log(`Received unread township update! It is an object thusly: ${JSON.stringify(townshipData)}`);
+            return dispatch({type: actions.UPDATE_UNREAD_TOWNSHIP, payload: townshipData});
         });
 
         socket.on('current_township_update', townshipData => {
@@ -109,7 +114,16 @@ export default function GameFramePage({ state, dispatch }) {
             sendSocketData({event: 'request_invitees_list'});
         }
         if (state?.playState !== 'viewSingleTownship') return sendSocketData({event: 'unview_township'});
-    }, [state.playState])
+    }, [state.playState]);
+
+    useEffect(() => {
+        // HERE, maybe: when moving into viewSingleTownship and receiving state.currentTownship data, hop to bottom...
+        //  ... and eventually, hop to 'last seen message'
+        if (state?.playState === 'viewSingleTownship') {
+            const textBox = textBoxRef.current;
+            textBox.scrollTop = textBox.scrollHeight;
+        }
+    }, [state?.currentTownship?.history]);
 
     // for the time being, I think this is the 'root' of the gameplay components, using 'playState' state var to dictate view
     // import an Alert component to live in here ... likely a fixed, high z-indexed fella
@@ -137,7 +151,7 @@ export default function GameFramePage({ state, dispatch }) {
                     {/* <button style={{padding: '1rem', fontWeight: '700', fontSize: '1.5rem', letterSpacing: '2px', marginBottom: '1.5rem'}} onClick={() => selectTownship(0)}>I am ZENITHICA!</button> */}
                     <button style={{padding: '1rem', fontWeight: '700', fontSize: '1.5rem', letterSpacing: '2px', marginBottom: '1.5rem'}} onClick={() => dispatch({type: actions.UPDATE_PLAYSTATE, payload: 'createTownship'})}>+ Create New Township</button>
                     {Object.keys(state?.townships).map((township, index) => (
-                        <button style={{padding: '1rem', fontWeight: '700', fontSize: '1.5rem', letterSpacing: '2px', marginBottom: '1.5rem'}} onClick={() => selectTownship(township)} key={index}>{state?.townships[township].name || `MYSTERY`}</button>
+                        <button style={{padding: '1rem', fontWeight: '700', fontSize: '1.5rem', letterSpacing: '2px', marginBottom: '1.5rem'}} onClick={() => selectTownship(township)} key={index}>{state?.townships[township].name || `MYSTERY`} {state?.townships[township].unreadTotal > 0 ? state?.townships[township].unreadTotal : '0'}</button>
                     ))}
                 </div>
             }
@@ -201,14 +215,14 @@ export default function GameFramePage({ state, dispatch }) {
 
                                 ... 'drawing' the elements of the town and adding further elements of animation/animationFrames should be a fun challenge!
                             */}
-                            <div style={{height: '80%', border: '1px solid red'}}>
+                            <div ref={textBoxRef} style={{height: '80%', border: '1px solid red', overflow: 'auto'}}>
                                 {state?.currentTownship?.history.map((historyObject, index) => (
                                     <p key={index}>{historyObject?.agent || `Mystery Person`} : {historyObject?.echo}</p>
                                 ))}
                             </div>
 
                             <form onSubmit={submitText}>
-                                <input style={{position: 'absolute', bottom: '1rem', width: '100%'}} type='text' placeholder={`Text Message or Action`} value={textMessage} onChange={e => setTextMessage(e.target.value)}></input>
+                                <input autoFocus={true} style={{position: 'absolute', bottom: '1rem', width: '100%'}} type='text' placeholder={`Text Message or Action`} value={textMessage} onChange={e => setTextMessage(e.target.value)}></input>
                             </form>
                             
                         </div>                                      

@@ -138,11 +138,13 @@ io.on('connection', (socket) => {
                 // essentially, take the initial township obj, then tweak the history
                 // the client can handle parsing what's "new" for the township chat
                 allUsers[thisUser.name].activeTownship = data.townshipID;
-                console.log(`${allUsers[thisUser.name].name} has changed their active viewing to township with id ${data.townshipID}.`)
-                // going to hold off on saving the user's current township for now
+                // console.log(`${allUsers[thisUser.name].name} has changed their active viewing to township with id ${data.townshipID}.`);
+                allUsers[thisUser.name].townships[data.townshipID].unreadTotal = 0;
+                saveUser(thisUser);
                 return socket.emit('township_view_data', allTownships[data.townshipID]);
             }
             case 'unview_township': {
+                console.log(`Somebody stopped viewing a township.`);
                 return allUsers[thisUser.name].activeTownship = 'none';
             }
             case 'create_township': {
@@ -319,14 +321,16 @@ io.on('connection', (socket) => {
                 allTownships[data.townID].lastActivityTS = rightNow;
                 saveTownship(allTownships[data.townID]);
 
+                // HEY, double check make sure unreadTotal is not incrementing while active
+
                 console.log(`BACKEND BEEP BOOP. Interacting with townID ${data.townID}.`);
                 console.log(`HEY. This township's members looks like this: ${JSON.stringify(allTownships[data.townID].members)}`)
                 Object.keys(allTownships[data.townID].members).forEach(memberName => {
                     console.log(`BACKEND BOOP BEEP. Interacting with member ${memberName}.`);
-                    console.log(`This member's current activeTownship is ${allUsers[memberName].activeTownship}.`);
+                    console.log(`${memberName}'s current activeTownship is ${allUsers[memberName].activeTownship}.`);
                     if (allUsers[memberName].activeTownship === undefined) allUsers[memberName].activeTownship = 'none';
                     if (allUsers[memberName].activeTownship === data.townID) {
-                        console.log(`This member is ACTIVELY IN THE CHAT, so we're handling that...`)
+                        // console.log(`This member is ACTIVELY IN THE CHAT, so we're handling that...`);
                         // HERE: handle sending client data for user who is currently viewing this township with 'current_township_update' -- update ref with rightNow lastview, pass new history item to be viewed
                         allUsers[memberName].townships[data.townID].lastViewTS = rightNow;
                         // BRUTE FORCE MODE: just for testing, just gonna go ahead and slap the user with the entire new township
@@ -337,8 +341,13 @@ io.on('connection', (socket) => {
                         return saveUser(allUsers[memberName]);
                     }
                     // HERE: handle updating user's reference to the township, update their unreadTotal, then send down 'unread_township_update' info
-                    console.log(`This member isn't currently in the chat, so we're handling background adjustments.`);
+                    // console.log(`${memberName} isn't currently in the chat, so we're handling background adjustments.`);
+                    if (isNaN(allUsers[memberName].townships[data.townID].unreadTotal)) allUsers[memberName].townships[data.townID].unreadTotal = 0;
+                    // console.log(`Their unreadTotal before doing anything extra is ${allUsers[memberName].townships[data.townID].unreadTotal}`)
                     allUsers[memberName].townships[data.townID].unreadTotal += 1;
+                    // console.log(`Their unreadTotal for the chat in question is ${allUsers[memberName].townships[data.townID].unreadTotal} now.`);
+                    // console.log(`We're passing down a townID of ${data.townID} and a townshipObj of ${allUsers[memberName].townships[data.townID]}`);
+                    io.to(memberName).emit(`unread_township_update`, {townID: data.townID, townshipObj: allUsers[memberName].townships[data.townID]});
                     return saveUser(allUsers[memberName]);
                 });
                 

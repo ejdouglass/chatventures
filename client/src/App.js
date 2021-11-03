@@ -30,22 +30,33 @@ export default function App() {
   -- Simplifying: character/user has ONE class equipped across all chats, one currency, one inventory
 
   -- Define and implement MOST BASIC FORMS:
-  1) Basic chat setup and mechanics
+  !) Basic chat setup and mechanics
     [x] NAME the township/chat
     [x] Add chat privacy (who can join, 'joinRule') of OPEN or PRIVATE
     [x] Add sendable join invites (from all eligible users -- connections, public users)
     [x] Use this information to actually create a new township on the server & in DB with 'standard' setup
     [x] Add ability to VIEW township using same mechanism as current 'big button Zenithica'
     [x] Add list of town structs
-    [_] Add ability to send message to township
-    [_] Add some visual cue for "this is a pending invite on your list here"    
+    [x] Add ability to send message to township
+    [_] Add some visual cue for "this is a pending invite on your list here" 
+    [_] Enable SEND TOWNSHIP INVITE for already-created township(s)   
     [_] Enable ACCEPT INVITE for people who are receiving chat requests
-    [_] Town struct menu nav for interaction
+    [_] Town struct menu nav interaction logic
+    [_] Structure logic for 'play' -- play screen stack(s) concept still my favorite idea for within-township menuing (for township-specific stuff)
+    [_] Stat/char screens scaffolding (now 'current mode agnostic' so can be a total overlay; should be ok as long as it is a totally opaque overlay for now)
     [_] If TOKEN found, add "LOADING FROM TOKEN" feedback rather than sitting awkwardly chilling for a split second on login
-    [_] Implement some useful version of state/user.activeChat (for "...")
+    [_] Implement some useful version of state/user.activeTownship (for "...")
 
     ... quick HRM: for a wider screen, chat and 'map'/display stuff can coexist side-by-side, small screens will have to be 'chat-first'/full-screen when chatting
     ... also still don't have a solid idea as to where/what the displays should/will look like, so focus on that after getting the core logic working
+  
+  OOPS?
+  -- unreadTotal defaults to NaN; 'fixed' it, but double check as to why that happens
+
+
+  CoW
+  -- not sure how Ling got stopped on turn 4 going into turn 5?
+  -- maybe refrag @ Elena shortly before threshold turn
 
 
   

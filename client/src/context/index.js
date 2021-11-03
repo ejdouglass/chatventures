@@ -11,6 +11,7 @@ export const actions = {
     UPDATE_PLAYSTATE: 'update_playstate',
     LOAD_CHARACTER: 'load_character',
     LOAD_TOWNSHIP: 'load_township',
+    UPDATE_UNREAD_TOWNSHIP: 'update_unread_township',
     LOGOUT: 'logout',
     PACKAGE_TO_SERVER: 'package_to_server',
     PACKAGE_FROM_SERVER: 'package_from_server'
@@ -28,7 +29,16 @@ export const Reducer = (state, action) => {
             return {...action.payload, playState: state.playState === undefined ? 'viewTownships' : state.playState};
         }
         case actions.LOAD_TOWNSHIP: {
-            return {...state, currentTownship: action.payload};
+            let stateTownships = {...state.townships};
+            stateTownships[action.payload.townID].unreadTotal = 0;
+            return {...state, currentTownship: action.payload, townships: stateTownships};
+        }
+        case actions.UPDATE_UNREAD_TOWNSHIP: {
+            let stateTownships = {...state.townships};
+            // console.log(`Reducer says townships before looked like this: ${JSON.stringify(stateTownships)}`);
+            stateTownships[action.payload.townID] = action.payload.townshipObj;
+            // console.log(`After the update, it should look like this: ${JSON.stringify(stateTownships)}`);
+            return {...state, townships: stateTownships};
         }
         case actions.LOGOUT: {
             return {name: undefined, appState: 'login'};
